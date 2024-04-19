@@ -79,7 +79,7 @@ class GenericLinuxThemeDetector : OsThemeDetector() {
 
         init {
             lastValue = detector.isDark
-            name = "GTK Theme Detector Thread"
+            name = "Generic Linux Theme Detector Thread"
             this.isDaemon = true
             priority = NORM_PRIORITY - 1
         }
