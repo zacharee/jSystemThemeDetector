@@ -11,93 +11,63 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
+package com.jthemedetecor.util
 
-package com.jthemedetecor.util;
+import java.util.concurrent.ConcurrentHashMap
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+class ConcurrentHashSet<E> : MutableSet<E> {
+    private val map: MutableMap<E, Any?> = ConcurrentHashMap()
 
-public class ConcurrentHashSet<E> implements Set<E> {
+    override val size: Int
+        get() = map.size
 
-    private final Map<E, Object> map;
-
-    private static final Object OBJ = new Object();
-
-    public ConcurrentHashSet() {
-        map = new ConcurrentHashMap<>();
+    override fun isEmpty(): Boolean {
+        return map.isEmpty()
     }
 
-    @Override
-    public int size() {
-        return map.size();
+    override fun contains(element: E): Boolean {
+        return map.containsKey(element)
     }
 
-    @Override
-    public boolean isEmpty() {
-        return map.isEmpty();
+    override fun iterator(): MutableIterator<E> {
+        return map.keys.iterator()
     }
 
-    @Override
-    public boolean contains(Object o) {
-        return map.containsKey(o);
+    override fun add(element: E): Boolean {
+        return map.put(element, OBJ) == null
     }
 
-    @Override
-    public Iterator<E> iterator() {
-        return map.keySet().iterator();
+    override fun remove(element: E): Boolean {
+        return map.remove(element) != null
     }
 
-    @Override
-    public Object[] toArray() {
-        return map.keySet().toArray();
+    override fun containsAll(elements: Collection<E>): Boolean {
+        return map.keys.containsAll(elements)
     }
 
-    @Override
-    public <T> T[] toArray(T[] a) {
-        return map.keySet().toArray(a);
-    }
-
-    @Override
-    public boolean add(E e) {
-        return map.put(e, OBJ) == null;
-    }
-
-    @Override
-    public boolean remove(Object o) {
-        return map.remove(o) != null;
-    }
-
-    @Override
-    public boolean containsAll(Collection<?> c) {
-        return map.keySet().containsAll(c);
-    }
-
-    @Override
-    public boolean addAll(Collection<? extends E> c) {
-        boolean changed = false;
-        for (E e: c) {
+    override fun addAll(elements: Collection<E>): Boolean {
+        var changed = false
+        for (e in elements) {
             if (map.put(e, OBJ) == null) {
-                changed = true;
+                changed = true
             }
         }
-        return changed;
+        return changed
     }
 
-    @Override
-    public boolean retainAll(Collection<?> c) {
-        throw new UnsupportedOperationException();
+    override fun retainAll(elements: Collection<E>): Boolean {
+        throw UnsupportedOperationException()
     }
 
-    @Override
-    public boolean removeAll(Collection<?> c) {
-        throw new UnsupportedOperationException();
+    override fun removeAll(elements: Collection<E>): Boolean {
+        throw UnsupportedOperationException()
     }
 
-    @Override
-    public void clear() {
-        map.clear();
+    override fun clear() {
+        map.clear()
+    }
+
+    companion object {
+        private val OBJ = Any()
     }
 }

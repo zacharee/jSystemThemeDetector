@@ -11,22 +11,18 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
+package com.jthemedetecor
 
-package com.jthemedetecor;
-
-import com.jthemedetecor.util.ConcurrentHashSet;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.regex.Pattern;
+import com.jthemedetecor.util.ConcurrentHashSet
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStreamReader
+import java.util.Objects
+import java.util.function.Consumer
+import java.util.regex.Pattern
+import kotlin.concurrent.Volatile
 
 /**
  * Used for detecting the dark theme on a Linux (GNOME/GTK) system.
@@ -34,130 +30,129 @@ import java.util.regex.Pattern;
  *
  * @author Daniel Gyorffy
  */
-class GnomeThemeDetector extends OsThemeDetector {
+internal class GnomeThemeDetector : OsThemeDetector() {
+    private val listeners: MutableSet<Consumer<Boolean?>?> = ConcurrentHashSet()
+    private val darkThemeNamePattern: Pattern =
+        Pattern.compile(".*dark.*", Pattern.CASE_INSENSITIVE)
 
-    private static final Logger logger = LoggerFactory.getLogger(GnomeThemeDetector.class);
+    @Volatile
+    private var detectorThread: DetectorThread? = null
 
-    private static final String MONITORING_CMD = "gsettings monitor org.gnome.desktop.interface";
-    private static final String[] GET_CMD = new String[]{
-            "gsettings get org.gnome.desktop.interface gtk-theme",
-            "gsettings get org.gnome.desktop.interface color-scheme"
-    };
-
-    private final Set<Consumer<Boolean>> listeners = new ConcurrentHashSet<>();
-    private final Pattern darkThemeNamePattern = Pattern.compile(".*dark.*", Pattern.CASE_INSENSITIVE);
-
-    private volatile DetectorThread detectorThread;
-
-    @Override
-    public boolean isDark() {
-        try {
-            Runtime runtime = Runtime.getRuntime();
-            for (String cmd : GET_CMD) {
-                Process process = runtime.exec(cmd);
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                    String readLine = reader.readLine();
-                    if (readLine != null && isDarkTheme(readLine)) {
-                        return true;
+    override val isDark: Boolean
+        get() {
+            try {
+                val runtime = Runtime.getRuntime()
+                for (cmd in GET_CMD) {
+                    val process = runtime.exec(cmd)
+                    BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
+                        val readLine = reader.readLine()
+                        if (readLine != null && isDarkTheme(readLine)) {
+                            return true
+                        }
                     }
                 }
+            } catch (e: IOException) {
+                logger.error("Couldn't detect Linux OS theme", e)
             }
-        } catch (IOException e) {
-            logger.error("Couldn't detect Linux OS theme", e);
+            return false
         }
-        return false;
+
+    private fun isDarkTheme(gtkTheme: String): Boolean {
+        return darkThemeNamePattern.matcher(gtkTheme).matches()
     }
 
-    private boolean isDarkTheme(String gtkTheme) {
-        return darkThemeNamePattern.matcher(gtkTheme).matches();
-    }
-
-    @SuppressWarnings("DuplicatedCode")
-    @Override
-    public synchronized void registerListener(@NotNull Consumer<Boolean> darkThemeListener) {
-        Objects.requireNonNull(darkThemeListener);
-        final boolean listenerAdded = listeners.add(darkThemeListener);
-        final boolean singleListener = listenerAdded && listeners.size() == 1;
-        final DetectorThread currentDetectorThread = detectorThread;
-        final boolean threadInterrupted = currentDetectorThread != null && currentDetectorThread.isInterrupted();
+    @Synchronized
+    override fun registerListener(darkThemeListener: Consumer<Boolean?>) {
+        Objects.requireNonNull(darkThemeListener)
+        val listenerAdded = listeners.add(darkThemeListener)
+        val singleListener = listenerAdded && listeners.size == 1
+        val currentDetectorThread = detectorThread
+        val threadInterrupted = currentDetectorThread != null && currentDetectorThread.isInterrupted
 
         if (singleListener || threadInterrupted) {
-            final DetectorThread newDetectorThread = new DetectorThread(this);
-            this.detectorThread = newDetectorThread;
-            newDetectorThread.start();
+            val newDetectorThread = DetectorThread(this)
+            this.detectorThread = newDetectorThread
+            newDetectorThread.start()
         }
     }
 
-    @Override
-    public synchronized void removeListener(@Nullable Consumer<Boolean> darkThemeListener) {
-        listeners.remove(darkThemeListener);
+    @Synchronized
+    override fun removeListener(darkThemeListener: Consumer<Boolean?>?) {
+        listeners.remove(darkThemeListener)
         if (listeners.isEmpty()) {
-            this.detectorThread.interrupt();
-            this.detectorThread = null;
+            detectorThread!!.interrupt()
+            this.detectorThread = null
         }
     }
 
     /**
      * Thread implementation for detecting the actually changed theme
      */
-    private static final class DetectorThread extends Thread {
+    private class DetectorThread(private val detector: GnomeThemeDetector) : Thread() {
+        private val outputPattern: Pattern =
+            Pattern.compile("(gtk-theme|color-scheme).*", Pattern.CASE_INSENSITIVE)
+        private var lastValue: Boolean
 
-        private final GnomeThemeDetector detector;
-        private final Pattern outputPattern = Pattern.compile("(gtk-theme|color-scheme).*", Pattern.CASE_INSENSITIVE);
-        private boolean lastValue;
-
-        DetectorThread(@NotNull GnomeThemeDetector detector) {
-            this.detector = detector;
-            this.lastValue = detector.isDark();
-            this.setName("GTK Theme Detector Thread");
-            this.setDaemon(true);
-            this.setPriority(Thread.NORM_PRIORITY - 1);
+        init {
+            this.lastValue = detector.isDark
+            this.name = "GTK Theme Detector Thread"
+            this.isDaemon = true
+            this.priority = NORM_PRIORITY - 1
         }
 
-        @Override
-        public void run() {
+        override fun run() {
             try {
-                Runtime runtime = Runtime.getRuntime();
-                Process monitoringProcess = runtime.exec(MONITORING_CMD);
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(monitoringProcess.getInputStream()))) {
-                    while (!this.isInterrupted()) {
+                val runtime = Runtime.getRuntime()
+                val monitoringProcess = runtime.exec(MONITORING_CMD)
+                BufferedReader(InputStreamReader(monitoringProcess.inputStream)).use { reader ->
+                    while (!this.isInterrupted) {
                         //Expected input = gtk-theme: '$GtkThemeName'
-                        String readLine = reader.readLine();
-                        
+                        val readLine = reader.readLine() ?: continue
+
+
                         // reader.readLine sometimes returns null on application shutdown.
-                        if (readLine == null) {
-                            continue;
-                        }
-                        
+
                         if (!outputPattern.matcher(readLine).matches()) {
-                            continue;
+                            continue
                         }
-                        String[] keyValue = readLine.split("\\s");
-                        String value = keyValue[1];
-                        boolean currentDetection = detector.isDarkTheme(value);
-                        logger.debug("Theme changed detection, dark: {}", currentDetection);
+                        val keyValue =
+                            readLine.split("\\s".toRegex()).dropLastWhile { it.isEmpty() }
+                                .toTypedArray()
+                        val value = keyValue[1]
+                        val currentDetection = detector.isDarkTheme(value)
+                        logger.debug("Theme changed detection, dark: {}", currentDetection)
                         if (currentDetection != lastValue) {
-                            lastValue = currentDetection;
-                            for (Consumer<Boolean> listener : detector.listeners) {
+                            lastValue = currentDetection
+                            for (listener in detector.listeners) {
                                 try {
-                                    listener.accept(currentDetection);
-                                } catch (RuntimeException e) {
-                                    logger.error("Caught exception during listener notifying ", e);
+                                    listener!!.accept(currentDetection)
+                                } catch (e: RuntimeException) {
+                                    logger.error("Caught exception during listener notifying ", e)
                                 }
                             }
                         }
                     }
-                    logger.debug("ThemeDetectorThread has been interrupted!");
-                    if (monitoringProcess.isAlive()) {
-                        monitoringProcess.destroy();
-                        logger.debug("Monitoring process has been destroyed!");
+                    logger.debug("ThemeDetectorThread has been interrupted!")
+                    if (monitoringProcess.isAlive) {
+                        monitoringProcess.destroy()
+                        logger.debug("Monitoring process has been destroyed!")
                     }
                 }
-            } catch (IOException e) {
-                logger.error("Couldn't start monitoring process ", e);
-            } catch (ArrayIndexOutOfBoundsException e) {
-                logger.error("Couldn't parse command line output", e);
+            } catch (e: IOException) {
+                logger.error("Couldn't start monitoring process ", e)
+            } catch (e: ArrayIndexOutOfBoundsException) {
+                logger.error("Couldn't parse command line output", e)
             }
         }
+    }
+
+    companion object {
+        private val logger: Logger = LoggerFactory.getLogger(GnomeThemeDetector::class.java)
+
+        private const val MONITORING_CMD = "gsettings monitor org.gnome.desktop.interface"
+        private val GET_CMD = arrayOf(
+            "gsettings get org.gnome.desktop.interface gtk-theme",
+            "gsettings get org.gnome.desktop.interface color-scheme"
+        )
     }
 }

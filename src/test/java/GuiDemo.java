@@ -47,7 +47,7 @@ public class GuiDemo extends Application {
                 }
             });
         };
-        darkThemeListener.accept(detector.isDark());
+        darkThemeListener.accept(detector.isDark);
         detector.registerListener(darkThemeListener);
     }
 
