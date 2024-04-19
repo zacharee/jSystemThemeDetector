@@ -36,22 +36,22 @@ abstract class OsThemeDetector {
      * that the os using a dark theme or not
      */
     @ThreadSafe
-    abstract fun registerListener(darkThemeListener: Consumer<Boolean?>)
+    abstract fun registerListener(darkThemeListener: Consumer<Boolean>)
 
     /**
      * Removes the listener.
      */
     @ThreadSafe
-    abstract fun removeListener(darkThemeListener: Consumer<Boolean?>?)
+    abstract fun removeListener(darkThemeListener: Consumer<Boolean>)
 
     private class EmptyDetector : OsThemeDetector() {
         override val isDark: Boolean
             get() = false
 
-        override fun registerListener(darkThemeListener: Consumer<Boolean?>) {
+        override fun registerListener(darkThemeListener: Consumer<Boolean>) {
         }
 
-        override fun removeListener(darkThemeListener: Consumer<Boolean?>?) {
+        override fun removeListener(darkThemeListener: Consumer<Boolean>) {
         }
     }
 
@@ -87,6 +87,9 @@ abstract class OsThemeDetector {
             } else if (OsInfo.isGnome) {
                 logDetection("Gnome", GnomeThemeDetector::class.java)
                 return GnomeThemeDetector()
+            } else if (OsInfo.isLinux) {
+                logDetection("GenericLinux", GenericLinuxThemeDetector::class.java)
+                return GenericLinuxThemeDetector()
             } else if (OsInfo.isMacOsMojaveOrLater) {
                 logDetection("MacOS", MacOSThemeDetector::class.java)
                 return MacOSThemeDetector()
@@ -108,6 +111,6 @@ abstract class OsThemeDetector {
 
         @get:ThreadSafe
         val isSupported: Boolean
-            get() = OsInfo.isWindows10OrLater || OsInfo.isMacOsMojaveOrLater || OsInfo.isGnome
+            get() = OsInfo.isWindows10OrLater || OsInfo.isMacOsMojaveOrLater || OsInfo.isGnome || OsInfo.isLinux
     }
 }

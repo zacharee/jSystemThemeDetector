@@ -31,7 +31,7 @@ import java.util.regex.Pattern
  * @author Daniel Gyorffy
  */
 class MacOSThemeDetector : OsThemeDetector() {
-    private val listeners: MutableSet<Consumer<Boolean?>?> = ConcurrentHashSet()
+    private val listeners: MutableSet<Consumer<Boolean>> = ConcurrentHashSet()
     private val themeNamePattern: Pattern = Pattern.compile(".*dark.*", Pattern.CASE_INSENSITIVE)
     private val callbackExecutor: ExecutorService =
         Executors.newSingleThreadExecutor { runnable: Runnable -> DetectorThread(runnable) }
@@ -106,16 +106,16 @@ class MacOSThemeDetector : OsThemeDetector() {
         return themeName != null && themeNamePattern.matcher(themeName).matches()
     }
 
-    override fun registerListener(darkThemeListener: Consumer<Boolean?>) {
+    override fun registerListener(darkThemeListener: Consumer<Boolean>) {
         listeners.add(darkThemeListener)
     }
 
-    override fun removeListener(darkThemeListener: Consumer<Boolean?>?) {
+    override fun removeListener(darkThemeListener: Consumer<Boolean>) {
         listeners.remove(darkThemeListener)
     }
 
     private fun notifyListeners(isDark: Boolean) {
-        listeners.forEach(Consumer { listener: Consumer<Boolean?>? -> listener!!.accept(isDark) })
+        listeners.forEach(Consumer { listener: Consumer<Boolean> -> listener.accept(isDark) })
     }
 
     private class DetectorThread(runnable: Runnable) : Thread(runnable) {

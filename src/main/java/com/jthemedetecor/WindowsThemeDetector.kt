@@ -35,7 +35,7 @@ import kotlin.concurrent.Volatile
  * @author airsquared
  */
 class WindowsThemeDetector : OsThemeDetector() {
-    private val listeners: MutableSet<Consumer<Boolean?>?> = ConcurrentHashSet()
+    private val listeners: MutableSet<Consumer<Boolean>> = ConcurrentHashSet()
 
     @Volatile
     private var detectorThread: DetectorThread? = null
@@ -53,7 +53,7 @@ class WindowsThemeDetector : OsThemeDetector() {
                 ) == 0
 
     @Synchronized
-    override fun registerListener(darkThemeListener: Consumer<Boolean?>) {
+    override fun registerListener(darkThemeListener: Consumer<Boolean>) {
         Objects.requireNonNull(darkThemeListener)
         val listenerAdded = listeners.add(darkThemeListener)
         val singleListener = listenerAdded && listeners.size == 1
@@ -68,7 +68,7 @@ class WindowsThemeDetector : OsThemeDetector() {
     }
 
     @Synchronized
-    override fun removeListener(darkThemeListener: Consumer<Boolean?>?) {
+    override fun removeListener(darkThemeListener: Consumer<Boolean>) {
         listeners.remove(darkThemeListener)
         if (listeners.isEmpty()) {
             detectorThread!!.interrupt()
@@ -120,7 +120,7 @@ class WindowsThemeDetector : OsThemeDetector() {
                     logger.debug("Theme change detected: dark: {}", currentDetection)
                     for (listener in themeDetector.listeners) {
                         try {
-                            listener!!.accept(currentDetection)
+                            listener.accept(currentDetection)
                         } catch (e: RuntimeException) {
                             logger.error("Caught exception during listener notifying ", e)
                         }
