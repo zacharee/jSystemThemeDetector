@@ -1,13 +1,28 @@
 plugins {
     id 'java'
     id 'org.jetbrains.kotlin.jvm'
+    id 'maven-publish'
 }
 
 group 'com.jthemedetector'
-version '3.8'
+version '3.9.1'
 
 repositories {
     mavenCentral()
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.kotlin
+
+                groupId = group
+                artifactId = 'final'
+                version = project.version
+            }
+        }
+    }
 }
 
 dependencies {
