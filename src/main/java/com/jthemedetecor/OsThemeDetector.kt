@@ -11,112 +11,103 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
+package com.jthemedetecor
 
-package com.jthemedetecor;
-
-import com.jthemedetecor.util.OsInfo;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import oshi.annotation.concurrent.ThreadSafe;
-
-import java.util.function.Consumer;
+import com.jthemedetecor.util.OsInfo
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import oshi.annotation.concurrent.ThreadSafe
+import java.util.function.Consumer
+import kotlin.concurrent.Volatile
 
 /**
  * For detecting the theme (dark/light) used by the Operating System.
  *
  * @author Daniel Gyorffy
  */
-public abstract class OsThemeDetector {
-
-    private static final Logger logger = LoggerFactory.getLogger(OsThemeDetector.class);
-
-    private static volatile OsThemeDetector osThemeDetector;
-
-    OsThemeDetector() {
-    }
-
-    @NotNull
-    @ThreadSafe
-    public static OsThemeDetector getDetector() {
-        OsThemeDetector instance = osThemeDetector;
-
-        if (instance == null) {
-            synchronized (OsThemeDetector.class) {
-                instance = osThemeDetector;
-
-                if (instance == null) {
-                    osThemeDetector = instance = createDetector();
-                }
-            }
-        }
-
-        return instance;
-    }
-
-    private static OsThemeDetector createDetector() {
-        if (OsInfo.isWindows10OrLater()) {
-            logDetection("Windows 10", WindowsThemeDetector.class);
-            return new WindowsThemeDetector();
-        } else if (OsInfo.isGnome()) {
-            logDetection("Gnome", GnomeThemeDetector.class);
-            return new GnomeThemeDetector();
-        } else if (OsInfo.isMacOsMojaveOrLater()) {
-            logDetection("MacOS", MacOSThemeDetector.class);
-            return new MacOSThemeDetector();
-        } else {
-            logger.debug("Theme detection is not supported on the system: {} {}", OsInfo.getFamily(), OsInfo.getVersion());
-            logger.debug("Creating empty detector...");
-            return new EmptyDetector();
-        }
-    }
-
-    private static void logDetection(String desktop, Class<? extends OsThemeDetector> detectorClass) {
-        logger.debug("Supported Desktop detected: {}", desktop);
-        logger.debug("Creating {}...", detectorClass.getName());
-    }
+abstract class OsThemeDetector internal constructor() {
+    @get:ThreadSafe
+    abstract val isDark: Boolean
 
     /**
-     * Returns that the os using a dark or a light theme.
+     * Registers a [Consumer] that will listen to a theme-change.
      *
-     * @return {@code true} if the os uses dark theme; {@code false} otherwise.
+     * @param darkThemeListener the [Consumer] that accepts a [Boolean] that represents
+     * that the os using a dark theme or not
      */
     @ThreadSafe
-    public abstract boolean isDark();
-
-    /**
-     * Registers a {@link Consumer} that will listen to a theme-change.
-     *
-     * @param darkThemeListener the {@link Consumer} that accepts a {@link Boolean} that represents
-     *                          that the os using a dark theme or not
-     */
-    @ThreadSafe
-    public abstract void registerListener(@NotNull Consumer<Boolean> darkThemeListener);
+    abstract fun registerListener(darkThemeListener: Consumer<Boolean?>)
 
     /**
      * Removes the listener.
      */
     @ThreadSafe
-    public abstract void removeListener(@Nullable Consumer<Boolean> darkThemeListener);
+    abstract fun removeListener(darkThemeListener: Consumer<Boolean?>?)
 
-    @ThreadSafe
-    public static boolean isSupported() {
-        return OsInfo.isWindows10OrLater() || OsInfo.isMacOsMojaveOrLater() || OsInfo.isGnome();
+    private class EmptyDetector : OsThemeDetector() {
+        override val isDark: Boolean
+            get() = false
+
+        override fun registerListener(darkThemeListener: Consumer<Boolean?>) {
+        }
+
+        override fun removeListener(darkThemeListener: Consumer<Boolean?>?) {
+        }
     }
 
-    private static final class EmptyDetector extends OsThemeDetector {
-        @Override
-        public boolean isDark() {
-            return false;
+    companion object {
+        private val logger: Logger = LoggerFactory.getLogger(OsThemeDetector::class.java)
+
+        @Volatile
+        private var osThemeDetector: OsThemeDetector? = null
+
+        @JvmStatic
+        @get:ThreadSafe
+        val detector: OsThemeDetector
+            get() {
+                var instance = osThemeDetector
+
+                if (instance == null) {
+                    synchronized(OsThemeDetector::class.java) {
+                        instance = osThemeDetector
+                        if (instance == null) {
+                            instance = createDetector()
+                            osThemeDetector = instance
+                        }
+                    }
+                }
+
+                return instance!!
+            }
+
+        private fun createDetector(): OsThemeDetector {
+            if (OsInfo.isWindows10OrLater) {
+                logDetection("Windows 10", WindowsThemeDetector::class.java)
+                return WindowsThemeDetector()
+            } else if (OsInfo.isGnome) {
+                logDetection("Gnome", GnomeThemeDetector::class.java)
+                return GnomeThemeDetector()
+            } else if (OsInfo.isMacOsMojaveOrLater) {
+                logDetection("MacOS", MacOSThemeDetector::class.java)
+                return MacOSThemeDetector()
+            } else {
+                logger.debug(
+                    "Theme detection is not supported on the system: {} {}",
+                    OsInfo.family,
+                    OsInfo.version,
+                )
+                logger.debug("Creating empty detector...")
+                return EmptyDetector()
+            }
         }
 
-        @Override
-        public void registerListener(@NotNull Consumer<Boolean> darkThemeListener) {
+        private fun logDetection(desktop: String, detectorClass: Class<out OsThemeDetector>) {
+            logger.debug("Supported Desktop detected: {}", desktop)
+            logger.debug("Creating {}...", detectorClass.name)
         }
 
-        @Override
-        public void removeListener(@Nullable Consumer<Boolean> darkThemeListener) {
-        }
+        @get:ThreadSafe
+        val isSupported: Boolean
+            get() = OsInfo.isWindows10OrLater || OsInfo.isMacOsMojaveOrLater || OsInfo.isGnome
     }
 }
