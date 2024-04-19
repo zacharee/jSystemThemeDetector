@@ -30,12 +30,8 @@ compileKotlin {
 dependencies {
     implementation group: 'org.slf4j', name: 'slf4j-api', version: '2.0.13'
 
-    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.5.6'
-    testImplementation group: 'ch.qos.logback', name: 'logback-core', version: '1.5.6'
-
     //JNA
     implementation 'net.java.dev.jna:jna:5.14.0'
-    implementation 'net.java.dev.jna:jna-platform:5.14.0'
 
     //JFA
     implementation ('de.jangassen:jfa:1.2.0') {
@@ -43,7 +39,9 @@ dependencies {
     }
 
     //OSHI
-    implementation 'com.github.oshi:oshi-core:6.6.0'
+    implementation ('com.github.oshi:oshi-core:6.6.0') {
+        exclude group: 'net.java.dev.jna', module: 'jna' // different jna version
+    }
 
     implementation 'io.github.g00fy2:versioncompare:1.5.0'
 
