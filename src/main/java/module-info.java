@@ -6,6 +6,7 @@ module com.jthemedetector {
     requires com.sun.jna;
     requires com.github.oshi;
     requires versioncompare;
+    requires kotlin.stdlib;
 
     exports com.jthemedetecor;
     
