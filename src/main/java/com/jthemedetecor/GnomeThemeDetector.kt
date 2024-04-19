@@ -30,7 +30,7 @@ import kotlin.concurrent.Volatile
  *
  * @author Daniel Gyorffy
  */
-internal class GnomeThemeDetector : OsThemeDetector() {
+class GnomeThemeDetector : OsThemeDetector() {
     private val listeners: MutableSet<Consumer<Boolean?>?> = ConcurrentHashSet()
     private val darkThemeNamePattern: Pattern =
         Pattern.compile(".*dark.*", Pattern.CASE_INSENSITIVE)

@@ -34,7 +34,7 @@ import kotlin.concurrent.Volatile
  * @author Daniel Gyorffy
  * @author airsquared
  */
-internal class WindowsThemeDetector : OsThemeDetector() {
+class WindowsThemeDetector : OsThemeDetector() {
     private val listeners: MutableSet<Consumer<Boolean?>?> = ConcurrentHashSet()
 
     @Volatile
