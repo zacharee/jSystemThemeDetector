@@ -30,7 +30,7 @@ import java.util.regex.Pattern
  *
  * @author Daniel Gyorffy
  */
-internal class MacOSThemeDetector : OsThemeDetector() {
+class MacOSThemeDetector : OsThemeDetector() {
     private val listeners: MutableSet<Consumer<Boolean?>?> = ConcurrentHashSet()
     private val themeNamePattern: Pattern = Pattern.compile(".*dark.*", Pattern.CASE_INSENSITIVE)
     private val callbackExecutor: ExecutorService =

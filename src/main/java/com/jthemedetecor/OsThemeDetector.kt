@@ -25,7 +25,7 @@ import kotlin.concurrent.Volatile
  *
  * @author Daniel Gyorffy
  */
-abstract class OsThemeDetector internal constructor() {
+abstract class OsThemeDetector {
     @get:ThreadSafe
     abstract val isDark: Boolean
 
