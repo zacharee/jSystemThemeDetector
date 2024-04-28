@@ -9,6 +9,7 @@ version '3.9.1'
 
 repositories {
     mavenCentral()
+    maven { url "https://jitpack.io" }
 }
 
 afterEvaluate {
@@ -33,8 +34,8 @@ dependencies {
     implementation 'net.java.dev.jna:jna-platform:5.15.0'
 
     //JFA
-    implementation ('de.jangassen:jfa:1.2.0') {
-        transitive = false
+    implementation ('com.github.zacharee:jfa:bf819ca544') {
+        exclude group: 'net.java.dev.jna', module: 'jna' // different jna version
     }
 
     //OSHI
