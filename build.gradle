@@ -33,7 +33,7 @@ dependencies {
 
     //JFA
     implementation ('de.jangassen:jfa:1.2.0') {
-        exclude group: 'net.java.dev.jna'
+        transitive = false
     }
 
     //OSHI
