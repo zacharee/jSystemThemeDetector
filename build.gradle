@@ -35,6 +35,7 @@ dependencies {
     //JFA
     implementation ('de.jangassen:jfa:1.2.0') {
         exclude group: 'net.java.dev.jna', module: 'jna' // different jna version
+        exclude group: 'net.java.dev.jna', module: 'jna-jpms' // different jna version
     }
 
     //OSHI
