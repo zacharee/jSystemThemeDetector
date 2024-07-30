@@ -46,6 +46,9 @@ object OsInfo {
     val isKde: Boolean
         get() = isLinux && currentLinuxDesktopEnvironmentName.lowercase().contains("kde")
 
+    val isLXDE: Boolean
+        get() = isLinux && currentLinuxDesktopEnvironmentName.lowercase().contains("lxde")
+
     fun hasType(platformType: PlatformEnum): Boolean {
         return OsInfo.platformType == platformType
     }
