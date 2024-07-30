@@ -39,9 +39,11 @@ object OsInfo {
 
     val isGnome: Boolean
         get() = isLinux && (queryResultContains("echo \$XDG_CURRENT_DESKTOP", "gnome") ||
-                queryResultContains("echo \$XDG_DATA_DIRS | grep -Eo 'gnome'", "gnome") ||
-                queryResultContains("ps -e | grep -E -i \"gnome\"", "gnome")
-                )
+                queryResultContains("echo \$XDG_DATA_DIRS | grep -Eo 'gnome'", "gnome"))
+
+    val isLXDE: Boolean
+        get() = isLinux && (queryResultContains("echo \$XDG_CURRENT_DESKTOP", "LXDE") ||
+                queryResultContains("echo \$XDG_DATA_DIRS | grep -Eo 'LXDE'", "LXDE"))
 
     fun hasType(platformType: PlatformEnum): Boolean {
         return OsInfo.platformType == platformType

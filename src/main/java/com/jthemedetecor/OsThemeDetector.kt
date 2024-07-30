@@ -81,26 +81,41 @@ abstract class OsThemeDetector {
             }
 
         private fun createDetector(): OsThemeDetector {
-            if (OsInfo.isWindows10OrLater) {
-                logDetection("Windows 10", WindowsThemeDetector::class.java)
-                return WindowsThemeDetector()
-            } else if (OsInfo.isGnome) {
-                logDetection("Gnome", GnomeThemeDetector::class.java)
-                return GnomeThemeDetector()
-            } else if (OsInfo.isLinux) {
-                logDetection("GenericLinux", GenericLinuxThemeDetector::class.java)
-                return GenericLinuxThemeDetector()
-            } else if (OsInfo.isMacOsMojaveOrLater) {
-                logDetection("MacOS", MacOSThemeDetector::class.java)
-                return MacOSThemeDetector()
-            } else {
-                logger.debug(
-                    "Theme detection is not supported on the system: {} {}",
-                    OsInfo.family,
-                    OsInfo.version,
-                )
-                logger.debug("Creating empty detector...")
-                return EmptyDetector()
+            return when {
+                OsInfo.isWindows10OrLater -> {
+                    logDetection("Windows 10", WindowsThemeDetector::class.java)
+                    return WindowsThemeDetector()
+                }
+
+                OsInfo.isGnome -> {
+                    logDetection("Gnome", GnomeThemeDetector::class.java)
+                    return GnomeThemeDetector()
+                }
+
+                OsInfo.isLXDE -> {
+                    logDetection("LXDE", LXDEThemeDetector::class.java)
+                    return LXDEThemeDetector()
+                }
+
+                OsInfo.isLinux -> {
+                    logDetection("GenericLinux", GenericLinuxThemeDetector::class.java)
+                    return GenericLinuxThemeDetector()
+                }
+
+                OsInfo.isMacOsMojaveOrLater -> {
+                    logDetection("MacOS", MacOSThemeDetector::class.java)
+                    return MacOSThemeDetector()
+                }
+
+                else -> {
+                    logger.debug(
+                        "Theme detection is not supported on the system: {} {}",
+                        OsInfo.family,
+                        OsInfo.version,
+                    )
+                    logger.debug("Creating empty detector...")
+                    return EmptyDetector()
+                }
             }
         }
 
@@ -111,6 +126,6 @@ abstract class OsThemeDetector {
 
         @get:ThreadSafe
         val isSupported: Boolean
-            get() = OsInfo.isWindows10OrLater || OsInfo.isMacOsMojaveOrLater || OsInfo.isGnome || OsInfo.isLinux
+            get() = OsInfo.isWindows10OrLater || OsInfo.isMacOsMojaveOrLater || OsInfo.isGnome || OsInfo.isLXDE || OsInfo.isLinux
     }
 }
