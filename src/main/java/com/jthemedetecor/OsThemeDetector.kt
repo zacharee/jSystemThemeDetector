@@ -13,6 +13,7 @@
  */
 package com.jthemedetecor
 
+import com.jthemedetecor.util.ConcurrentHashSet
 import com.jthemedetecor.util.OsInfo
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -29,6 +30,11 @@ abstract class OsThemeDetector {
     @get:ThreadSafe
     abstract val isDark: Boolean
 
+    protected val listeners = ConcurrentHashSet<Consumer<Boolean>>()
+    protected val logger = LoggerFactory.getLogger(this::class.java)
+
+    protected open val needsMonitorRestart: Boolean = false
+
     /**
      * Registers a [Consumer] that will listen to a theme-change.
      *
@@ -36,23 +42,41 @@ abstract class OsThemeDetector {
      * that the os using a dark theme or not
      */
     @ThreadSafe
-    abstract fun registerListener(darkThemeListener: Consumer<Boolean>)
+    @Synchronized
+    fun registerListener(darkThemeListener: Consumer<Boolean>) {
+        val listenerAdded = listeners.add(darkThemeListener)
+        val singleListener = listenerAdded && listeners.size == 1
+
+        if (singleListener || needsMonitorRestart) {
+            startMonitor()
+        }
+    }
 
     /**
      * Removes the listener.
      */
     @ThreadSafe
-    abstract fun removeListener(darkThemeListener: Consumer<Boolean>)
+    @Synchronized
+    fun removeListener(darkThemeListener: Consumer<Boolean>) {
+        listeners.remove(darkThemeListener)
+        if (listeners.isEmpty()) {
+            stopMonitor()
+        }
+    }
+
+    protected fun notifyListeners(newValue: Boolean = isDark) {
+        listeners.forEach { it.accept(newValue) }
+    }
+
+    protected open fun startMonitor() {}
+    protected open fun stopMonitor() {}
 
     private class EmptyDetector : OsThemeDetector() {
         override val isDark: Boolean
             get() = false
 
-        override fun registerListener(darkThemeListener: Consumer<Boolean>) {
-        }
-
-        override fun removeListener(darkThemeListener: Consumer<Boolean>) {
-        }
+        override fun startMonitor() {}
+        override fun stopMonitor() {}
     }
 
     companion object {
@@ -127,5 +151,39 @@ abstract class OsThemeDetector {
         @get:ThreadSafe
         val isSupported: Boolean
             get() = OsInfo.isWindows10OrLater || OsInfo.isMacOsMojaveOrLater || OsInfo.isGnome || OsInfo.isLXDE || OsInfo.isLinux
+    }
+}
+
+abstract class ThreadBasedOsThemeDetector : OsThemeDetector() {
+    @Volatile
+    protected var detectorThread: DetectorThread? = null
+
+    override val needsMonitorRestart: Boolean
+        get() = detectorThread?.isInterrupted == true
+
+    protected abstract fun createThread(): DetectorThread
+
+    override fun startMonitor() {
+        detectorThread = createThread()
+        detectorThread?.start()
+    }
+
+    override fun stopMonitor() {
+        detectorThread?.interrupt()
+        detectorThread = null
+    }
+
+    protected abstract inner class DetectorThread(
+        threadName: String,
+        daemon: Boolean,
+        priority: Int,
+    ) : Thread() {
+        protected var lastValue = this@ThreadBasedOsThemeDetector.isDark
+
+        init {
+            this.name = threadName
+            this.isDaemon = daemon
+            this.priority = priority
+        }
     }
 }

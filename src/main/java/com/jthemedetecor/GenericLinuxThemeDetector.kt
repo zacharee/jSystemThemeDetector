@@ -14,18 +14,13 @@
 
 package com.jthemedetecor
 
-import com.jthemedetecor.util.ConcurrentHashSet
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
-import java.util.Objects
-import java.util.function.Consumer
 import java.util.regex.Pattern
 
-class GenericLinuxThemeDetector : OsThemeDetector() {
-    private val listeners = ConcurrentHashSet<Consumer<Boolean>>()
+class GenericLinuxThemeDetector : ThreadBasedOsThemeDetector() {
     private val darkThemeNamePattern = Pattern.compile(".*dark.*", Pattern.CASE_INSENSITIVE)
-    private var detectorThread: DetectorThread? = null
 
     override val isDark: Boolean
         get() {
@@ -49,41 +44,18 @@ class GenericLinuxThemeDetector : OsThemeDetector() {
         return darkThemeNamePattern.matcher(gtkTheme).matches()
     }
 
-    @Synchronized
-    override fun registerListener(darkThemeListener: Consumer<Boolean>) {
-        Objects.requireNonNull(darkThemeListener)
-        val listenerAdded = listeners.add(darkThemeListener)
-        val singleListener = listenerAdded && listeners.size == 1
-        val threadInterrupted = detectorThread != null && detectorThread!!.isInterrupted
-        if (singleListener || threadInterrupted) {
-            detectorThread = DetectorThread(this)
-            detectorThread!!.start()
-        }
-    }
-
-    @Synchronized
-    override fun removeListener(darkThemeListener: Consumer<Boolean>) {
-        listeners.remove(darkThemeListener)
-        if (listeners.isEmpty()) {
-            detectorThread!!.interrupt()
-            detectorThread = null
-        }
+    override fun createThread(): ThreadBasedOsThemeDetector.DetectorThread {
+        return DetectorThread()
     }
 
     /**
      * Thread implementation for detecting the actually changed theme
      */
-    private class DetectorThread(private val detector: GenericLinuxThemeDetector) :
-        Thread() {
-        private var lastValue: Boolean
-
-        init {
-            lastValue = detector.isDark
-            name = "Generic Linux Theme Detector Thread"
-            this.isDaemon = true
-            priority = NORM_PRIORITY - 1
-        }
-
+    private inner class DetectorThread : ThreadBasedOsThemeDetector.DetectorThread(
+        threadName = "Generic Linux Theme Detector",
+        daemon = true,
+        priority = NORM_PRIORITY - 1,
+    ) {
         @Suppress("NewApi")
         override fun run() {
             try {
@@ -97,18 +69,11 @@ class GenericLinuxThemeDetector : OsThemeDetector() {
                             readLine.split("\\s".toRegex()).dropLastWhile { it.isEmpty() }
                                 .toTypedArray()
                         val value = keyValue.getOrNull(1)
-                        val currentDetection = detector.isDarkTheme(value ?: "")
+                        val currentDetection = isDarkTheme(value ?: "")
                         println("Theme changed detection, dark: $currentDetection")
                         if (currentDetection != lastValue) {
                             lastValue = currentDetection
-                            for (listener in detector.listeners) {
-                                try {
-                                    listener.accept(currentDetection)
-                                } catch (e: RuntimeException) {
-                                    println("Caught exception during listener notifying ")
-                                    e.printStackTrace()
-                                }
-                            }
+                            notifyListeners(currentDetection)
                         }
                     }
                     println("ThemeDetectorThread has been interrupted!")

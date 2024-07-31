@@ -13,16 +13,10 @@
  */
 package com.jthemedetecor
 
-import com.jthemedetecor.util.ConcurrentHashSet
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
-import java.util.Objects
-import java.util.function.Consumer
 import java.util.regex.Pattern
-import kotlin.concurrent.Volatile
 
 /**
  * Used for detecting the dark theme on a Linux (GNOME/GTK) system.
@@ -30,13 +24,9 @@ import kotlin.concurrent.Volatile
  *
  * @author Daniel Gyorffy
  */
-class GnomeThemeDetector : OsThemeDetector() {
-    private val listeners: MutableSet<Consumer<Boolean>> = ConcurrentHashSet()
+class GnomeThemeDetector : ThreadBasedOsThemeDetector() {
     private val darkThemeNamePattern: Pattern =
         Pattern.compile(".*dark.*", Pattern.CASE_INSENSITIVE)
-
-    @Volatile
-    private var detectorThread: DetectorThread? = null
 
     override val isDark: Boolean
         get() {
@@ -61,44 +51,20 @@ class GnomeThemeDetector : OsThemeDetector() {
         return darkThemeNamePattern.matcher(gtkTheme).matches()
     }
 
-    @Synchronized
-    override fun registerListener(darkThemeListener: Consumer<Boolean>) {
-        Objects.requireNonNull(darkThemeListener)
-        val listenerAdded = listeners.add(darkThemeListener)
-        val singleListener = listenerAdded && listeners.size == 1
-        val currentDetectorThread = detectorThread
-        val threadInterrupted = currentDetectorThread != null && currentDetectorThread.isInterrupted
-
-        if (singleListener || threadInterrupted) {
-            val newDetectorThread = DetectorThread(this)
-            this.detectorThread = newDetectorThread
-            newDetectorThread.start()
-        }
-    }
-
-    @Synchronized
-    override fun removeListener(darkThemeListener: Consumer<Boolean>) {
-        listeners.remove(darkThemeListener)
-        if (listeners.isEmpty()) {
-            detectorThread!!.interrupt()
-            this.detectorThread = null
-        }
+    override fun createThread(): ThreadBasedOsThemeDetector.DetectorThread {
+        return DetectorThread()
     }
 
     /**
      * Thread implementation for detecting the actually changed theme
      */
-    private class DetectorThread(private val detector: GnomeThemeDetector) : Thread() {
+    private inner class DetectorThread : ThreadBasedOsThemeDetector.DetectorThread(
+        threadName = "GTK Theme Detector",
+        daemon = true,
+        priority = NORM_PRIORITY - 1,
+    ) {
         private val outputPattern: Pattern =
             Pattern.compile("(gtk-theme|color-scheme).*", Pattern.CASE_INSENSITIVE)
-        private var lastValue: Boolean
-
-        init {
-            this.lastValue = detector.isDark
-            this.name = "GTK Theme Detector Thread"
-            this.isDaemon = true
-            this.priority = NORM_PRIORITY - 1
-        }
 
         override fun run() {
             try {
@@ -119,17 +85,11 @@ class GnomeThemeDetector : OsThemeDetector() {
                             readLine.split("\\s".toRegex()).dropLastWhile { it.isEmpty() }
                                 .toTypedArray()
                         val value = keyValue[1]
-                        val currentDetection = detector.isDarkTheme(value)
+                        val currentDetection = isDarkTheme(value)
                         logger.debug("Theme changed detection, dark: {}", currentDetection)
                         if (currentDetection != lastValue) {
                             lastValue = currentDetection
-                            for (listener in detector.listeners) {
-                                try {
-                                    listener.accept(currentDetection)
-                                } catch (e: RuntimeException) {
-                                    logger.error("Caught exception during listener notifying ", e)
-                                }
-                            }
+                            notifyListeners(currentDetection)
                         }
                     }
                     logger.debug("ThemeDetectorThread has been interrupted!")
@@ -147,8 +107,6 @@ class GnomeThemeDetector : OsThemeDetector() {
     }
 
     companion object {
-        private val logger: Logger = LoggerFactory.getLogger(GnomeThemeDetector::class.java)
-
         private const val MONITORING_CMD = "gsettings monitor org.gnome.desktop.interface"
         private val GET_CMD = arrayOf(
             "gsettings get org.gnome.desktop.interface gtk-theme",
