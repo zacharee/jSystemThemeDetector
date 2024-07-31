@@ -13,19 +13,8 @@
  */
 package com.jthemedetecor
 
-import com.jthemedetecor.util.ConcurrentHashSet
-import com.sun.jna.platform.win32.Advapi32
-import com.sun.jna.platform.win32.Advapi32Util
-import com.sun.jna.platform.win32.W32Errors
-import com.sun.jna.platform.win32.Win32Exception
-import com.sun.jna.platform.win32.WinNT
-import com.sun.jna.platform.win32.WinReg
+import com.sun.jna.platform.win32.*
 import com.sun.jna.platform.win32.WinReg.HKEYByReference
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import java.util.Objects
-import java.util.function.Consumer
-import kotlin.concurrent.Volatile
 
 /**
  * Determines the dark/light theme by the windows registry values through JNA.
@@ -34,12 +23,7 @@ import kotlin.concurrent.Volatile
  * @author Daniel Gyorffy
  * @author airsquared
  */
-class WindowsThemeDetector : OsThemeDetector() {
-    private val listeners: MutableSet<Consumer<Boolean>> = ConcurrentHashSet()
-
-    @Volatile
-    private var detectorThread: DetectorThread? = null
-
+class WindowsThemeDetector : ThreadBasedOsThemeDetector() {
     override val isDark: Boolean
         get() = Advapi32Util.registryValueExists(
             WinReg.HKEY_CURRENT_USER,
@@ -52,43 +36,18 @@ class WindowsThemeDetector : OsThemeDetector() {
                     REGISTRY_VALUE
                 ) == 0
 
-    @Synchronized
-    override fun registerListener(darkThemeListener: Consumer<Boolean>) {
-        Objects.requireNonNull(darkThemeListener)
-        val listenerAdded = listeners.add(darkThemeListener)
-        val singleListener = listenerAdded && listeners.size == 1
-        val currentDetectorThread = detectorThread
-        val threadInterrupted = currentDetectorThread != null && currentDetectorThread.isInterrupted
-
-        if (singleListener || threadInterrupted) {
-            val newDetectorThread = DetectorThread(this)
-            this.detectorThread = newDetectorThread
-            newDetectorThread.start()
-        }
-    }
-
-    @Synchronized
-    override fun removeListener(darkThemeListener: Consumer<Boolean>) {
-        listeners.remove(darkThemeListener)
-        if (listeners.isEmpty()) {
-            detectorThread!!.interrupt()
-            this.detectorThread = null
-        }
+    override fun createThread(): ThreadBasedOsThemeDetector.DetectorThread {
+        return DetectorThread()
     }
 
     /**
      * Thread implementation for detecting the theme changes
      */
-    private class DetectorThread(private val themeDetector: WindowsThemeDetector) : Thread() {
-        private var lastValue: Boolean
-
-        init {
-            this.lastValue = themeDetector.isDark
-            this.name = "Windows 10 Theme Detector Thread"
-            this.isDaemon = true
-            this.priority = NORM_PRIORITY - 1
-        }
-
+    private inner class DetectorThread : ThreadBasedOsThemeDetector.DetectorThread(
+        threadName = "Windows Theme Detector",
+        daemon = true,
+        priority = NORM_PRIORITY - 1,
+    ) {
         override fun run() {
             val hkey = HKEYByReference()
             var err = Advapi32.INSTANCE.RegOpenKeyEx(
@@ -114,17 +73,11 @@ class WindowsThemeDetector : OsThemeDetector() {
                     throw Win32Exception(err)
                 }
 
-                val currentDetection = themeDetector.isDark
+                val currentDetection = isDark
                 if (currentDetection != this.lastValue) {
                     lastValue = currentDetection
                     logger.debug("Theme change detected: dark: {}", currentDetection)
-                    for (listener in themeDetector.listeners) {
-                        try {
-                            listener.accept(currentDetection)
-                        } catch (e: RuntimeException) {
-                            logger.error("Caught exception during listener notifying ", e)
-                        }
-                    }
+                    notifyListeners(currentDetection)
                 }
             }
             Advapi32Util.registryCloseKey(hkey.value)
@@ -132,10 +85,6 @@ class WindowsThemeDetector : OsThemeDetector() {
     }
 
     companion object {
-        private val logger: Logger = LoggerFactory.getLogger(
-            WindowsThemeDetector::class.java
-        )
-
         private const val REGISTRY_PATH =
             "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"
         private const val REGISTRY_VALUE = "AppsUseLightTheme"

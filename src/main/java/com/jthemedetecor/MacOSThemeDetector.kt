@@ -13,16 +13,10 @@
  */
 package com.jthemedetecor
 
-import com.jthemedetecor.util.ConcurrentHashSet
 import com.sun.jna.Callback
 import de.jangassen.jfa.foundation.Foundation
 import de.jangassen.jfa.foundation.Foundation.NSAutoreleasePool
 import de.jangassen.jfa.foundation.ID
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.function.Consumer
 import java.util.regex.Pattern
 
 /**
@@ -31,15 +25,12 @@ import java.util.regex.Pattern
  * @author Daniel Gyorffy
  */
 class MacOSThemeDetector : OsThemeDetector() {
-    private val listeners: MutableSet<Consumer<Boolean>> = ConcurrentHashSet()
     private val themeNamePattern: Pattern = Pattern.compile(".*dark.*", Pattern.CASE_INSENSITIVE)
-    private val callbackExecutor: ExecutorService =
-        Executors.newSingleThreadExecutor { runnable: Runnable -> DetectorThread(runnable) }
 
     private val themeChangedCallback: Callback = object : Callback {
         @Suppress("unused")
         fun callback() {
-            callbackExecutor.execute { notifyListeners(isDark) }
+            notifyListeners(isDark)
         }
     }
 
@@ -52,7 +43,7 @@ class MacOSThemeDetector : OsThemeDetector() {
         try {
             val delegateClass = Foundation.allocateObjcClassPair(
                 Foundation.getObjcClass("NSObject"),
-                "NSColorChangesObserver"
+                "NSColorChangesObserver",
             )
             if (ID.NIL != delegateClass) {
                 if (!Foundation.addMethod(
@@ -104,29 +95,6 @@ class MacOSThemeDetector : OsThemeDetector() {
 
     private fun isDarkTheme(themeName: String?): Boolean {
         return themeName != null && themeNamePattern.matcher(themeName).matches()
-    }
-
-    override fun registerListener(darkThemeListener: Consumer<Boolean>) {
-        listeners.add(darkThemeListener)
-    }
-
-    override fun removeListener(darkThemeListener: Consumer<Boolean>) {
-        listeners.remove(darkThemeListener)
-    }
-
-    private fun notifyListeners(isDark: Boolean) {
-        listeners.forEach(Consumer { listener: Consumer<Boolean> -> listener.accept(isDark) })
-    }
-
-    private class DetectorThread(runnable: Runnable) : Thread(runnable) {
-        init {
-            name = "MacOS Theme Detector Thread"
-            isDaemon = true
-        }
-    }
-
-    companion object {
-        private val logger: Logger = LoggerFactory.getLogger(MacOSThemeDetector::class.java)
     }
 }
 

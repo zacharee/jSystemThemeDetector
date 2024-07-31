@@ -14,17 +14,14 @@
 
 package com.jthemedetecor
 
-import com.jthemedetecor.util.ConcurrentHashSet
 import io.methvin.watcher.DirectoryChangeEvent
 import io.methvin.watcher.DirectoryWatcher
 import java.io.BufferedReader
 import java.io.File
 import java.io.IOException
 import java.io.InputStreamReader
-import java.util.function.Consumer
 
 class LXDEThemeDetector : OsThemeDetector() {
-    private val listeners = ConcurrentHashSet<Consumer<Boolean>>()
     private var directoryWatcher: DirectoryWatcher? = null
 
     override val isDark: Boolean
@@ -47,34 +44,25 @@ class LXDEThemeDetector : OsThemeDetector() {
         return fileContents.lines().any { it.startsWith("sNet/ThemeName") && it.contains("dark", true) }
     }
 
-    @Synchronized
-    override fun registerListener(darkThemeListener: Consumer<Boolean>) {
-        val listenerAdded = listeners.add(darkThemeListener)
-        val singleListener = listenerAdded && listeners.size == 1
-        if (singleListener) {
-            directoryWatcher = DirectoryWatcher.builder()
-                .path(File("~/.config/lxsession/LXDE/").toPath())
-                .listener { event ->
-                    if (event.eventType() == DirectoryChangeEvent.EventType.MODIFY && event.path()
-                            .endsWith("desktop.conf")
-                    ) {
-                        val isDark = isDark
-                        listeners.forEach { listener -> listener.accept(isDark) }
-                    }
+    override fun startMonitor() {
+        directoryWatcher = DirectoryWatcher.builder()
+            .path(File("~/.config/lxsession/LXDE/").toPath())
+            .listener { event ->
+                if (event.eventType() == DirectoryChangeEvent.EventType.MODIFY && event.path()
+                        .endsWith("desktop.conf")
+                ) {
+                    val isDark = isDark
+                    listeners.forEach { listener -> listener.accept(isDark) }
                 }
-                .build()
+            }
+            .build()
 
-            directoryWatcher?.watchAsync()
-        }
+        directoryWatcher?.watchAsync()
     }
 
-    @Synchronized
-    override fun removeListener(darkThemeListener: Consumer<Boolean>) {
-        listeners.remove(darkThemeListener)
-        if (listeners.isEmpty()) {
-            directoryWatcher?.close()
-            directoryWatcher = null
-        }
+    override fun stopMonitor() {
+        directoryWatcher?.close()
+        directoryWatcher = null
     }
 
     companion object {
