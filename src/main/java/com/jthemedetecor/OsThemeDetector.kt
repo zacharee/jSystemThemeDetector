@@ -85,6 +85,50 @@ abstract class OsThemeDetector {
         @Volatile
         private var osThemeDetector: OsThemeDetector? = null
 
+        private fun createDetector(): OsThemeDetector {
+            return when {
+                OsInfo.isWindows10OrLater -> {
+                    logDetection("Windows 10", WindowsThemeDetector::class.java)
+                    WindowsThemeDetector()
+                }
+
+                OsInfo.isKde -> {
+                    logDetection("KDE", KdeThemeDetector::class.java)
+                    return KdeThemeDetector()
+                }
+
+                OsInfo.isLXDE -> {
+                    logDetection("LXDE", LXDEThemeDetector::class.java)
+                    LXDEThemeDetector()
+                }
+
+                OsInfo.isGnome -> {
+                    logDetection("Gnome", GnomeThemeDetector::class.java)
+                    GnomeThemeDetector()
+                }
+
+                OsInfo.isLinux -> {
+                    logDetection("GenericLinux", GenericLinuxThemeDetector::class.java)
+                    GenericLinuxThemeDetector()
+                }
+
+                OsInfo.isMacOsMojaveOrLater -> {
+                    logDetection("MacOS", MacOSThemeDetector::class.java)
+                    MacOSThemeDetector()
+                }
+
+                else -> {
+                    logger.debug(
+                        "Theme detection is not supported on the system: {} {}",
+                        OsInfo.family,
+                        OsInfo.version,
+                    )
+                    logger.debug("Creating empty detector...")
+                    EmptyDetector()
+                }
+            }
+        }
+
         @JvmStatic
         @get:ThreadSafe
         val detector: OsThemeDetector
@@ -103,50 +147,6 @@ abstract class OsThemeDetector {
 
                 return instance!!
             }
-
-        private fun createDetector(): OsThemeDetector {
-            return when {
-                OsInfo.isWindows10OrLater -> {
-                    logDetection("Windows 10", WindowsThemeDetector::class.java)
-                    return WindowsThemeDetector()
-                }
-
-                OsInfo.isGnome -> {
-                    logDetection("Gnome", GnomeThemeDetector::class.java)
-                    return GnomeThemeDetector()
-                }
-
-                OsInfo.isKde -> {
-                    logDetection("KDE", KdeThemeDetector::class.java)
-                    return KdeThemeDetector()
-                }
-
-                OsInfo.isLXDE -> {
-                    logDetection("LXDE", LXDEThemeDetector::class.java)
-                    return LXDEThemeDetector()
-                }
-
-                OsInfo.isLinux -> {
-                    logDetection("GenericLinux", GenericLinuxThemeDetector::class.java)
-                    return GenericLinuxThemeDetector()
-                }
-
-                OsInfo.isMacOsMojaveOrLater -> {
-                    logDetection("MacOS", MacOSThemeDetector::class.java)
-                    return MacOSThemeDetector()
-                }
-
-                else -> {
-                    logger.debug(
-                        "Theme detection is not supported on the system: {} {}",
-                        OsInfo.family,
-                        OsInfo.version,
-                    )
-                    logger.debug("Creating empty detector...")
-                    return EmptyDetector()
-                }
-            }
-        }
 
         private fun logDetection(desktop: String, detectorClass: Class<out OsThemeDetector>) {
             logger.debug("Supported Desktop detected: {}", desktop)
