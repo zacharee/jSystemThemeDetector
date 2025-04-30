@@ -51,6 +51,10 @@ public class OsInfo {
         );
     }
 
+    public static boolean isKde() {
+        return isLinux() && System.getenv("XDG_CURRENT_DESKTOP").toLowerCase().contains("KDE".toLowerCase());
+    }
+
     public static boolean hasType(PlatformEnum platformType) {
         return OsInfo.platformType.equals(platformType);
     }
