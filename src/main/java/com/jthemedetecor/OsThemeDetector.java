@@ -63,7 +63,7 @@ public abstract class OsThemeDetector {
             logDetection("Gnome", GnomeThemeDetector.class);
             return new GnomeThemeDetector();
         } else if (OsInfo.isKde()) {
-            logDetection("Kde", KdeThemeDetector.class);
+            logDetection("KDE", KdeThemeDetector.class);
             return new KdeThemeDetector();
         } else if (OsInfo.isMacOsMojaveOrLater()) {
             logDetection("MacOS", MacOSThemeDetector.class);
