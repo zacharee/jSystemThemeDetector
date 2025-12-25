@@ -155,7 +155,12 @@ abstract class OsThemeDetector {
 
         @get:ThreadSafe
         val isSupported: Boolean
-            get() = OsInfo.isWindows10OrLater || OsInfo.isMacOsMojaveOrLater || OsInfo.isGnome || OsInfo.isLXDE || OsInfo.isLinux
+            get() = OsInfo.isWindows10OrLater ||
+                    OsInfo.isMacOsMojaveOrLater ||
+                    OsInfo.isGnome ||
+                    OsInfo.isKde ||
+                    OsInfo.isLXDE ||
+                    OsInfo.isLinux
     }
 }
 
