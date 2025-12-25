@@ -14,9 +14,9 @@
 package com.jthemedetecor
 
 import com.sun.jna.Callback
-import de.jangassen.jfa.foundation.Foundation
-import de.jangassen.jfa.foundation.Foundation.NSAutoreleasePool
-import de.jangassen.jfa.foundation.ID
+import dev.zwander.jfa.foundation.Foundation
+import dev.zwander.jfa.foundation.Foundation.NSAutoreleasePool
+import dev.zwander.jfa.foundation.ID
 import java.util.regex.Pattern
 
 /**

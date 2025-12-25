@@ -34,7 +34,7 @@ dependencies {
     implementation 'net.java.dev.jna:jna-platform:5.15.0'
 
     //JFA
-    implementation ('com.github.zacharee:jfa:bf819ca544') {
+    implementation ('com.github.zacharee:jfa:27f9e5a414') {
         exclude group: 'net.java.dev.jna', module: 'jna' // different jna version
     }
 
